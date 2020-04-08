@@ -5,6 +5,7 @@ import logging
 import random
 import time
 import sys
+import _curses
 
 try:
     import _curses._CursesWindow as window
@@ -17,7 +18,7 @@ class MineBlock(object):
 
     def __init__(self, ismine: bool = False):
         self.ismine = ismine
-        self.marked = False
+        self.flagged = False
         self.checked = False
         self.number = False
 
@@ -27,12 +28,14 @@ class MineBlock(object):
     def returnstr(self) -> str:
         """Get the string representation of the block"""
         if self.checked:
+            if self.ismine:
+                return "X"
             if self.number:
                 return str(self.number)  # nearby mines
             else:
                 return "&"  # checked empty spot
         else:
-            if self.marked:
+            if self.flagged:
                 return "F"  # flagged
             else:
                 return "#"  # not checked or flagged
@@ -67,7 +70,7 @@ class MineMap(object):
         self.end: bool = False
         self.logger: logging.Logger = logger
         self.mines = []
-        self.focus : list = [self.length_x//2, self.length_y//2]
+        self.focus: list = [self.length_x // 2, self.length_y // 2]
         self.lastfocus = tuple(self.focus)
 
         # add logger
@@ -103,10 +106,14 @@ class MineMap(object):
         """Demonstrative function"""
         return self.board[pos_y][pos_x]
 
+    def gameover(self):
+        raise NotImplementedError("Not yet")
+
     def run(self, stdscr: window):
         """Run the game using curses"""
         stdscr.nodelay(True)
         first = True
+        quit_verify = 0
         while True:
             # keypress = stdscr.getch()
             # if keypress == -1:
@@ -117,40 +124,70 @@ class MineMap(object):
                 try:
                     keypress = stdscr.getkey()
                     self.logger.debug("Received key {}".format(keypress))
-                    if keypress == "KEY_UP":
-                        if self.focus[1] > 0:
-                            self.lastfocus = tuple(self.focus)
-                            self.focus[1] -= 1
-                    elif keypress == "KEY_DOWN":
-                        if self.focus[1] < self.length_y:
-                            self.lastfocus = tuple(self.focus)
-                            self.focus[1] += 1
-                    elif keypress == "KEY_LEFT":
-                        if self.focus[0] > 0:
-                            self.lastfocus = tuple(self.focus)
-                            self.focus[0] -= 1
-                    elif keypress == "KEY_RIGHT":
-                        if self.focus[0] < self.length_x:
-                            self.lastfocus = tuple(self.focus)
-                            self.focus[0] += 1
-                    self.logger.debug("Focus now at: {} {}".format(*self.focus))
-                    self.logger.debug("Last focus now at: {} {}".format(*self.lastfocus))
-                except:
+                    if keypress.lower() == "q":
+                        quit_verify += 1
+                        if quit_verify == 2:
+                            break
+                    else:
+                        quit_verify = 0
+                        if keypress == "KEY_UP":
+                            if self.focus[1] > 0:
+                                self.lastfocus = tuple(self.focus)
+                                self.focus[1] -= 1
+                                self.logger.debug(
+                                    "Focus now at: {} {}".format(
+                                        *self.focus))
+                        elif keypress == "KEY_DOWN":
+                            if self.focus[1] < self.length_y - 1:
+                                self.lastfocus = tuple(self.focus)
+                                self.focus[1] += 1
+                                self.logger.debug(
+                                    "Focus now at: {} {}".format(
+                                        *self.focus))
+                        elif keypress == "KEY_LEFT":
+                            if self.focus[0] > 0:
+                                self.lastfocus = tuple(self.focus)
+                                self.focus[0] -= 1
+                                self.logger.debug(
+                                    "Focus now at: {} {}".format(
+                                        *self.focus))
+                        elif keypress == "KEY_RIGHT":
+                            if self.focus[0] < self.length_x - 1:
+                                self.lastfocus = tuple(self.focus)
+                                self.focus[0] += 1
+                                self.logger.debug(
+                                    "Focus now at: {} {}".format(
+                                        *self.focus))
+                        elif keypress.lower() == "f":
+                            self.board[self.focus[0]][self.focus[1]
+                                                      ].flagged = not self.board[self.focus[0]][self.focus[1]].flagged
+                        elif keypress.lower() == " ":
+                            self.board[self.focus[0]][self.focus[1]
+                                                      ].checked = True
+                            if self.board[self.focus[0]][self.focus[1]].ismine:
+                                self.gameover()
+                except _curses.error:
                     pass
+                except Exception as exc:
+                    raise exc
             else:
                 first = False
 
             # check if window too small
             num_rows, num_cols = stdscr.getmaxyx()
-            if num_cols < self.length_x*4 + 9 or num_rows < self.length_y*2 + 5:
+            if num_cols < self.length_x * 4 + 9 or num_rows < self.length_y * 2 + 5:
                 stdscr.clear()
                 stdscr.addstr(1, 1, "Screen too small")
                 stdscr.refresh()
                 continue
+
+            # display top message
+            stdscr.addstr(1, 1, " " * 52)
+            if quit_verify == 1:
+                stdscr.addstr(
+                    1, 1, "Press q again to quit, any other key to continue")
             else:
                 stdscr.addstr(1, 1, "~MineSweeper TUI~")
-
-
 
             # label lines
             for row in range(self.length_y):
@@ -169,24 +206,26 @@ class MineMap(object):
                     stdscr.addstr(3 + row * 2, 4 + counter * 4, "|")
 
             # remove previous focus marker
-            stdscr.addstr(5+self.lastfocus[1]*2, 9+self.lastfocus[0]*4, " ")
-            stdscr.addstr(5+self.lastfocus[1]*2, 11+self.lastfocus[0]*4, " ")
+            stdscr.addstr(
+                5 + self.lastfocus[1] * 2,
+                9 + self.lastfocus[0] * 4,
+                " ")
+            stdscr.addstr(
+                5 + self.lastfocus[1] * 2,
+                11 + self.lastfocus[0] * 4,
+                " ")
 
             # set mines
             for row in range(self.length_y):
                 for column in range(self.length_x):
                     char = self.board[column][row].returnstr()
-                    stdscr.addstr(5+row*2, 10+column*4, char)
+                    stdscr.addstr(5 + row * 2, 10 + column * 4, char)
                     if self.focus == [column, row]:
-                        stdscr.addstr(5+row*2, 9+column*4, ">")
-                        stdscr.addstr(5+row*2, 11+column*4, "<")
-
-
+                        stdscr.addstr(5 + row * 2, 9 + column * 4, ">")
+                        stdscr.addstr(5 + row * 2, 11 + column * 4, "<")
 
             # refresh screen
             stdscr.refresh()
-
-
 
 
 def main():
