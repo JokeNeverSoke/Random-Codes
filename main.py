@@ -252,6 +252,12 @@ class MineMap(object):
                             self.logger.debug(
                                 "Focus now at: {} {}".format(
                                     *self.focus))
+                    elif keypress == "^U": # TODO: add more vim-like bindings
+                        self.lastfocus = tuple(self.focus)
+                        self.focus[1] = 0
+                        self.logger.debug(
+                            "Focus now at: {} {}".format(
+                                *self.focus))
                     else:
                         if keypress.lower() == "f":  # flag the current focus
                             self.board[self.focus[0]][self.focus[1]
