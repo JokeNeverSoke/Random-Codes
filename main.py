@@ -1,12 +1,12 @@
 
 
+import _curses
 import curses
 import logging
 import random
-import time
 import sys
+import time
 from typing import List, Tuple
-import _curses
 
 try:
     import _curses._CursesWindow as window
@@ -109,7 +109,7 @@ class MineMap(object):
         for _ in range(mines):
             pos_x, pos_y = random.randrange(
                 self.length_y), random.randrange(self.length_x)
-            while self.board[pos_y][pos_x].ismine or (pos_x, pos_y) in avoid:
+            while self.board[pos_y][pos_x].ismine or (pos_y, pos_x) in avoid:
                 pos_x, pos_y = random.randrange(
                     self.length_y), random.randrange(self.length_x)
             self.board[pos_y][pos_x].ismine = True
@@ -122,8 +122,83 @@ class MineMap(object):
             for column in range(len(self.board[row])):
                 self.board[row][column].checked = True
 
+    def getsurround(self, x, y):
+        """Get the amount of mines surrounding (x, y)"""
+        toscan: List[Tuple[int, int]] = [
+            (x - 1, y - 1), (x, y - 1), (x + 1, y - 1),
+            (x - 1, y), (x, y), (x + 1, y),
+            (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)
+        ]
+        minecount = 0
+        for point in toscan:
+            if all((
+                point[0] >= 0,
+                point[1] >= 0,
+                point[1] < self.length_x,
+                point[0] < self.length_y,
+            )):
+                try:
+                    if self.board[point[1]][point[0]].ismine:
+                        minecount += 1
+                except IndexError:
+                    self.logger.exception(
+                        "Failed to scan point {}".format(point))
+        return minecount
+
+    def scan(self):
+        """Scan board"""
+        queue: list = []
+        scanned: list = []
+        # add all check blocks to queue
+        for row in range(len(self.board)):
+            for column in range(len(self.board[row])):
+                if self.board[row][column].checked and (
+                        column, row) not in scanned:
+                    queue.append((column, row))
+        while queue:
+            point: Tuple[int, int] = queue.pop(0)
+            scanned.append(point)
+            column = point[0]
+            row = point[1]
+            block: MineBlock = self.board[row][column]
+            if block.ismine:
+                continue
+            self.board[row][column].checked = True
+            self.board[row][column].number = self.getsurround(column, row)
+            if not self.board[row][column].number:
+                for canscan in [
+                    (column + 1, row), (column - 1, row),
+                    (column, row + 1), (column, row - 1)
+                ]:
+                    if all((
+                        canscan[0] >= 0,
+                        canscan[1] >= 0,
+                        canscan[1] < self.length_x,
+                        canscan[0] < self.length_y,
+                        canscan not in scanned
+                    )):
+                        queue.append(canscan)
+
     def run(self, stdscr: window):
         """Run the game using curses"""
+        # add color pairs
+        # color for empty checked
+        curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        # color for mines
+        curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+        # color for index
+        curses.init_pair(10, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        # color for 1 mine
+        curses.init_pair(21, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        # color for 2 mine
+        curses.init_pair(22, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        # color for 3 mine
+        curses.init_pair(23, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        # color for 4 mines
+        curses.init_pair(24, curses.COLOR_RED, curses.COLOR_BLACK)
+        # color for >=5 mines
+        curses.init_pair(25, curses.COLOR_BLACK, curses.COLOR_RED)
+
         stdscr.nodelay(True)  # non-blocking stuff
         first = True  # first 'space' click check
         quit_verify = 0  # for double verifying when user presses 'q'
@@ -177,9 +252,11 @@ class MineMap(object):
                         if first:
                             # place mines if is first click
                             first = False
-                            self.placemines(self.mines, [tuple(self.focus)])
+                            self.placemines(self.mines, avoid=[
+                                            tuple(self.focus)])
                         elif self.board[self.focus[0]][self.focus[1]].ismine:
                             self.gameover()
+                self.scan()
             except _curses.error:  # ignore emtpy keypress
                 pass
             except Exception as exc:
@@ -206,10 +283,10 @@ class MineMap(object):
             # label lines
             for row in range(self.length_y):
                 number = " " * (3 - len(str(row + 1))) + str(row + 1)
-                stdscr.addstr(5 + row * 2, 5, number)
+                stdscr.addstr(5 + row * 2, 5, number, curses.color_pair(10))
             for column in range(self.length_x):
                 number = " " * (3 - len(str(column + 1))) + str(column + 1)
-                stdscr.addstr(3, 9 + column * 4, number)
+                stdscr.addstr(3, 9 + column * 4, number, curses.color_pair(10))
 
             # draw borders
             for row in range(self.length_y + 2):
@@ -233,10 +310,35 @@ class MineMap(object):
             for row in range(self.length_y):
                 for column in range(self.length_x):
                     char = self.board[column][row].returnstr()
-                    stdscr.addstr(5 + row * 2, 10 + column * 4, char)
+                    attrs = []
+                    if char == "&":
+                        attrs.append(curses.color_pair(1))
+                    elif char == "X":
+                        attrs.append(curses.color_pair(2))
+                    elif char == "1":
+                        attrs.append(curses.color_pair(21))
+                    elif char == "2":
+                        attrs.append(curses.color_pair(22))
+                    elif char == "3":
+                        attrs.append(curses.color_pair(23))
+                    elif char == "4":
+                        attrs.append(curses.color_pair(24))
+                    elif char == "5":
+                        attrs.append(curses.color_pair(25))
+                    elif char == "6":
+                        attrs.append(curses.color_pair(25))
+                    elif char == "7":
+                        attrs.append(curses.color_pair(25))
+                    elif char == "8":
+                        attrs.append(curses.color_pair(25))
+                    elif char == "9":
+                        attrs.append(curses.color_pair(25))
+                    stdscr.addstr(5 + row * 2, 10 + column * 4, char, *attrs)
                     if self.focus == [column, row]:  # put focus marker
-                        stdscr.addstr(5 + row * 2, 9 + column * 4, ">")
-                        stdscr.addstr(5 + row * 2, 11 + column * 4, "<")
+                        stdscr.addstr(
+                            5 + row * 2, 9 + column * 4, ">", curses.A_BLINK)
+                        stdscr.addstr(
+                            5 + row * 2, 11 + column * 4, "<", curses.A_BLINK)
 
             # refresh screen
             stdscr.refresh()
