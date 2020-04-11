@@ -191,6 +191,8 @@ class MineMap(object):
         curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
         # color for mines
         curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+        # color for flags
+        curses.init_pair(3, curses.COLOR_RED, curses.COLOR_GREEN)
         # color for index
         curses.init_pair(10, curses.COLOR_BLUE, curses.COLOR_BLACK)
         # color for 1 mine
@@ -321,6 +323,8 @@ class MineMap(object):
                         attrs.append(curses.color_pair(1))
                     elif char == "X":
                         attrs.append(curses.color_pair(2))
+                    elif char == "F":
+                        attrs.append(curses.color_pair(3))
                     elif char == "1":
                         attrs.append(curses.color_pair(21))
                     elif char == "2":
