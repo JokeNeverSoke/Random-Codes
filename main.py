@@ -34,7 +34,7 @@ class MineBlock(object):
             if self.number:
                 return str(self.number)  # nearby mines
             else:
-                return "&"  # checked empty spot
+                return "0"  # checked empty spot
         else:
             if self.flagged:
                 return "F"  # flagged
@@ -319,7 +319,7 @@ class MineMap(object):
                 for column in range(self.length_x):
                     char = self.board[column][row].returnstr()
                     attrs = []
-                    if char == "&":
+                    if char == "0":
                         attrs.append(curses.color_pair(1))
                     elif char == "X":
                         attrs.append(curses.color_pair(2))
