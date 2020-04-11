@@ -217,35 +217,35 @@ class MineMap(object):
                 # raises _curses.error when no keypress, so error catching is
                 # needed to prevent breakdown
                 keypress = stdscr.getkey()
-                self.logger.debug("Received key {}".format(keypress))
+                self.logger.debug("Received key '{}'".format(keypress))
                 if keypress.lower() == "q":
                     quit_verify += 1
                     if quit_verify == 2:
                         break
                 else:
                     quit_verify = 0
-                    if keypress == "KEY_UP":
+                    if keypress in ["KEY_UP", "k"]:
                         if self.focus[1] > 0:
                             self.lastfocus = tuple(self.focus)
                             self.focus[1] -= 1
                             self.logger.debug(
                                 "Focus now at: {} {}".format(
                                     *self.focus))
-                    elif keypress == "KEY_DOWN":
+                    elif keypress in ["KEY_DOWN", "j"]:
                         if self.focus[1] < self.length_y - 1:
                             self.lastfocus = tuple(self.focus)
                             self.focus[1] += 1
                             self.logger.debug(
                                 "Focus now at: {} {}".format(
                                     *self.focus))
-                    elif keypress == "KEY_LEFT":
+                    elif keypress in ["KEY_LEFT", "h"]:
                         if self.focus[0] > 0:
                             self.lastfocus = tuple(self.focus)
                             self.focus[0] -= 1
                             self.logger.debug(
                                 "Focus now at: {} {}".format(
                                     *self.focus))
-                    elif keypress == "KEY_RIGHT":
+                    elif keypress in ["KEY_RIGHT", "l"]:
                         if self.focus[0] < self.length_x - 1:
                             self.lastfocus = tuple(self.focus)
                             self.focus[0] += 1
