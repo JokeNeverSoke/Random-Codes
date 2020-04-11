@@ -30,6 +30,8 @@ class MineBlock(object):
         """Get the string representation of the block"""
         if self.checked:
             if self.ismine:
+                if self.flagged:
+                    return "$"
                 return "X"
             if self.number:
                 return str(self.number)  # nearby mines
@@ -323,7 +325,7 @@ class MineMap(object):
                         attrs.append(curses.color_pair(1))
                     elif char == "X":
                         attrs.append(curses.color_pair(2))
-                    elif char == "F":
+                    elif char in ["F", "$"]:
                         attrs.append(curses.color_pair(3))
                     elif char == "1":
                         attrs.append(curses.color_pair(21))
