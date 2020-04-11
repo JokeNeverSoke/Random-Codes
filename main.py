@@ -147,17 +147,21 @@ class MineMap(object):
 
     def scan(self):
         """Scan board"""
-        queue: list = []
-        self.scanned: list = []
+        queue: List[Tuple[int, int]] = []
+        self.scanned: List[Tuple[int, int]] = []
         # add all check blocks to queue
         for row in range(len(self.board)):
             for column in range(len(self.board[row])):
-                if self.board[row][column].checked and (
-                        column, row) not in self.scanned:
+                if all((
+                        self.board[row][column].checked,
+                        not self.board[row][column].number,
+                        (column, row) not in self.scanned
+                )):
                     queue.append((column, row))
+                    self.scanned.append((column, row))
         while queue:
             point: Tuple[int, int] = queue.pop(0)
-            self.scanned.append(point)
+            self.logger.debug("Scanning {}".format(point))
             column = point[0]
             row = point[1]
             block: MineBlock = self.board[row][column]
@@ -178,6 +182,7 @@ class MineMap(object):
                         canscan not in self.scanned
                     )):
                         queue.append(canscan)
+                        self.scanned.append(canscan)
 
     def run(self, stdscr: window):
         """Run the game using curses"""
@@ -243,20 +248,21 @@ class MineMap(object):
                             self.logger.debug(
                                 "Focus now at: {} {}".format(
                                     *self.focus))
-                    elif keypress.lower() == "f":  # flag the current focus
-                        self.board[self.focus[0]][self.focus[1]
-                                                  ].flagged = not self.board[self.focus[0]][self.focus[1]].flagged
-                    elif keypress.lower() == " ":  # explore current focus
-                        self.board[self.focus[0]][self.focus[1]
-                                                  ].checked = True
-                        if first:
-                            # place mines if is first click
-                            first = False
-                            self.placemines(self.mines, avoid=[
-                                            tuple(self.focus)])
-                        elif self.board[self.focus[0]][self.focus[1]].ismine:
-                            self.gameover()
-                self.scan()
+                    else:
+                        if keypress.lower() == "f":  # flag the current focus
+                            self.board[self.focus[0]][self.focus[1]
+                                                      ].flagged = not self.board[self.focus[0]][self.focus[1]].flagged
+                        elif keypress.lower() == " ":  # explore current focus
+                            self.board[self.focus[0]][self.focus[1]
+                                                      ].checked = True
+                            if first:
+                                # place mines if is first click
+                                first = False
+                                self.placemines(self.mines, avoid=[
+                                                tuple(self.focus)])
+                            elif self.board[self.focus[0]][self.focus[1]].ismine:
+                                self.gameover()
+                        self.scan()
             except _curses.error:  # ignore emtpy keypress
                 pass
             except Exception as exc:
