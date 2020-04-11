@@ -148,16 +148,16 @@ class MineMap(object):
     def scan(self):
         """Scan board"""
         queue: list = []
-        scanned: list = []
+        self.scanned: list = []
         # add all check blocks to queue
         for row in range(len(self.board)):
             for column in range(len(self.board[row])):
                 if self.board[row][column].checked and (
-                        column, row) not in scanned:
+                        column, row) not in self.scanned:
                     queue.append((column, row))
         while queue:
             point: Tuple[int, int] = queue.pop(0)
-            scanned.append(point)
+            self.scanned.append(point)
             column = point[0]
             row = point[1]
             block: MineBlock = self.board[row][column]
@@ -175,7 +175,7 @@ class MineMap(object):
                         canscan[1] >= 0,
                         canscan[1] < self.length_x,
                         canscan[0] < self.length_y,
-                        canscan not in scanned
+                        canscan not in self.scanned
                     )):
                         queue.append(canscan)
 
