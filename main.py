@@ -163,7 +163,7 @@ class MineMap(object):
                     self.scanned.append((column, row))
         while queue:
             point: Tuple[int, int] = queue.pop(0)
-            self.logger.debug("Scanning {}".format(point))
+            # self.logger.debug("Scanning {}".format(point))
             column = point[0]
             row = point[1]
             block: MineBlock = self.board[row][column]
@@ -215,7 +215,7 @@ class MineMap(object):
         while True:
             try:
                 # raises _curses.error when no keypress, so error catching is
-                # needed
+                # needed to prevent breakdown
                 keypress = stdscr.getkey()
                 self.logger.debug("Received key {}".format(keypress))
                 if keypress.lower() == "q":
